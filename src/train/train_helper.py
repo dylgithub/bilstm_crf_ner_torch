@@ -27,7 +27,7 @@ class NerModel(object):
         self.out_size = out_size
         self.batch_size = 64
         self.lr = 0.01
-        self.epoches = 20
+        self.epoches = 1
         self.print_step = 20
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"使用 : {self.device} ...")
@@ -84,7 +84,9 @@ class NerModel(object):
             self.scheduler.step()
             if epoch > 10 and self.model_type != "bert-bilstm-crf":
                 self.test(test_word_lists, test_tag_lists, word2id, tag2id)
-            elif epoch > 15:
+            # elif epoch > 15:
+            #     self.test(test_word_lists, test_tag_lists, word2id, tag2id)
+            elif epoch > 0:
                 self.test(test_word_lists, test_tag_lists, word2id, tag2id)
             
 
@@ -155,7 +157,9 @@ class NerModel(object):
         indices, _ = list(zip(*ind_maps))
         pre_tag_lists = [pre_tag_lists[i] for i in indices]
         tag_lists = [test_tag_lists[i] for i in indices]
-
+        print("here........")
+        print(pre_tag_lists)
+        print(tag_lists)
         total_precision, result_dic = precision(pre_tag_lists, tag_lists)
         print(f"实体级准确率为: {total_precision}")
         print(f"各实体对应的准确率为: {json.dumps(result_dic, ensure_ascii=False, indent=4)}")

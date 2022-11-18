@@ -23,7 +23,6 @@ def sort_by_lengths(word_lists,tag_lists):
 
 
 def batch_sents_to_tensorized(batch, maps):
-    print("batch.....", batch)
     PAD = maps.get('<pad>')
     UNK = maps.get('<unk>')
 
