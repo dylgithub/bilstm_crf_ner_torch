@@ -52,11 +52,12 @@ class Train:
         save_as_pickle(self.word2id, self.word2id_path)
         save_as_pickle(self.tag2id, self.tag2id_path)
         save_as_pickle(self.id2word, self.id2word_path)
+        # 提供预训练的字向量文件，不用使用bert生成了
         print("self.vec_path....", self.vec_path)
         if not os.path.exists(self.vec_path):
             print('用 BERT 生成预训练向量')
             self.get_pretrained_vec.get_bert_embed(self.train_data_path, self.vec_path, char=True)
-
+        # 加上结束符： <end>
         self.train_word_lists, self.train_tag_lists = add_end_token(self.train_word_lists, self.train_tag_lists)
 
         self.eval_word_lists, self.eval_tag_list = add_end_token(self.eval_word_lists, self.eval_tag_list)
@@ -76,8 +77,11 @@ class Train:
         tag2id = load_pickle_obj(self.tag2id_path)
 
         print(f"tag2id: {tag2id}")
+        # 词表大小
         vocab_size = len(word2id)
+        # tag的种类 B-LOC, M-LOC算两种
         out_size = len(tag2id)
+        # 搭建模型
         ner_model = NerModel(vocab_size, out_size, use_pretrained_w2v=use_pretrained_w2v,  model_type=model_type)
         print(f"vocab_size: {vocab_size}, out_size: {out_size}")
         print("start to train the {} model ...".format(model_type))

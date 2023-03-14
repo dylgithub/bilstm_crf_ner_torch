@@ -7,6 +7,7 @@ class BiLSTM_CRF(nn.Module):
     def __init__(self, vocab_size, emb_size, hidden_size, out_size, dropout, use_pretrained_w2v):
         super(BiLSTM_CRF, self).__init__()
         self.bilstm = BiLSTM(vocab_size, emb_size, hidden_size, out_size, dropout, use_pretrained_w2v)
+        # 转移矩阵
         self.transition = nn.Parameter(torch.ones(out_size, out_size) * 1 / out_size)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

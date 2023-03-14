@@ -27,7 +27,7 @@ class NerModel(object):
         self.out_size = out_size
         self.batch_size = 64
         self.lr = 0.01
-        self.epoches = 1
+        self.epoches = 30
         self.print_step = 20
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"使用 : {self.device} ...")
@@ -36,6 +36,7 @@ class NerModel(object):
         self.dropout = 0.5
         self.use_pretrained_w2v = use_pretrained_w2v
         if self.model_type == "bilstm-crf":
+            # 模型搭建完毕，向量层作为其中的一层，use_pretrained_w2v=False则是随机初始化的向量
             self.model = BiLSTM_CRF(self.vocab_size, self.emb_size, self.hidden_size, self.out_size, self.dropout, self.use_pretrained_w2v)
             self.loss_cal_fun = cal_bilstm_crf_loss
         elif self.model_type == "bilstm":
