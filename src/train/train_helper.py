@@ -13,8 +13,10 @@ from model.bilstm_crf import BiLSTM_CRF, cal_bilstm_crf_loss
 from tools.get_ner_level_acc import precision
 from tools.help import load_pickle_obj, sort_by_lengths, batch_sents_to_tensorized
 from model.path import get_model_dir, get_tag2id_path, get_word2id_path
+from seqeval.metrics import f1_score, accuracy_score, classification_report, precision_score, recall_score
 
 torch.manual_seed(1234)
+
 
 class NerModel(object):
     def __init__(self, vocab_size, out_size, use_pretrained_w2v=False, model_type="bilstm-crf"):
@@ -37,19 +39,22 @@ class NerModel(object):
         self.use_pretrained_w2v = use_pretrained_w2v
         if self.model_type == "bilstm-crf":
             # 模型搭建完毕，向量层作为其中的一层，use_pretrained_w2v=False则是随机初始化的向量
-            self.model = BiLSTM_CRF(self.vocab_size, self.emb_size, self.hidden_size, self.out_size, self.dropout, self.use_pretrained_w2v)
+            self.model = BiLSTM_CRF(self.vocab_size, self.emb_size, self.hidden_size, self.out_size, self.dropout,
+                                    self.use_pretrained_w2v)
             self.loss_cal_fun = cal_bilstm_crf_loss
         elif self.model_type == "bilstm":
-            self.model = BiLSTM(self.vocab_size, self.emb_size, self.hidden_size, self.out_size, self.dropout, self.use_pretrained_w2v)
+            self.model = BiLSTM(self.vocab_size, self.emb_size, self.hidden_size, self.out_size, self.dropout,
+                                self.use_pretrained_w2v)
             self.loss_cal_fun = cal_bilstm_loss
         elif self.model_type == "bert-bilstm-crf":
-            self.model = BertBiLstmCrf(self.vocab_size, self.emb_size, self.hidden_size, self.out_size, self.dropout, self.use_pretrained_w2v)
+            self.model = BertBiLstmCrf(self.vocab_size, self.emb_size, self.hidden_size, self.out_size, self.dropout,
+                                       self.use_pretrained_w2v)
             self.loss_cal_fun = cal_bert_bilstm_crf_loss
 
-        self.model.to(self.device)   
-    
+        self.model.to(self.device)
+
         self.optimizer = torch.optim.Adam(self.model.parameters(), self.lr, weight_decay=0.005)
-        self.scheduler = ExponentialLR(self.optimizer, gamma = 0.8)
+        self.scheduler = ExponentialLR(self.optimizer, gamma=0.8)
 
         self.step = 0
         self.best_val_loss = 1e18
@@ -58,21 +63,22 @@ class NerModel(object):
         else:
             model_name = f"{self.model_type}.pt"
         self.model_save_path = os.path.join(self.model_type_dir, model_name)
-    
-    def train(self, train_word_lists, train_tag_lists, dev_word_lists, dev_tag_lists, test_word_lists, test_tag_lists, word2id, tag2id):
+
+    def train(self, train_word_lists, train_tag_lists, dev_word_lists, dev_tag_lists, test_word_lists, test_tag_lists,
+              word2id, tag2id):
         # 尽量把同等长度的句子放到一个batch中
         train_word_lists, train_tag_lists, _ = sort_by_lengths(train_word_lists, train_tag_lists)
         dev_word_lists, dev_tag_lists, _ = sort_by_lengths(dev_word_lists, dev_tag_lists)
 
-        total_step = (len(train_word_lists)//self.batch_size + 1)
+        total_step = (len(train_word_lists) // self.batch_size + 1)
 
         epoch_iterator = trange(1, self.epoches + 1, desc="Epoch")
         for epoch in epoch_iterator:
             self.step = 0
             loss_sum = 0.
             for idx in trange(0, len(train_word_lists), self.batch_size, desc="Iteration:"):
-                batch_sents = train_word_lists[idx : idx + self.batch_size]
-                batch_tags = train_tag_lists[idx : idx + self.batch_size]
+                batch_sents = train_word_lists[idx: idx + self.batch_size]
+                batch_tags = train_tag_lists[idx: idx + self.batch_size]
                 loss_sum += self.train_step(batch_sents, batch_tags, word2id, tag2id)
                 if self.step == total_step:
                     print("\nEpoch {}, step/total_step: {}/{} {:.2f}% Loss:{:.4f}".format(
@@ -89,11 +95,10 @@ class NerModel(object):
             #     self.test(test_word_lists, test_tag_lists, word2id, tag2id)
             elif epoch > 0:
                 self.test(test_word_lists, test_tag_lists, word2id, tag2id)
-            
 
     def train_step(self, batch_sents, batch_tags, word2id, tag2id):
         self.model.train()
-        self.step+=1
+        self.step += 1
         batch_sents_tensor, sents_lengths = batch_sents_to_tensorized(batch_sents, word2id)
         labels_tensor, _ = batch_sents_to_tensorized(batch_tags, tag2id)
 
@@ -107,17 +112,15 @@ class NerModel(object):
 
         return loss.item()
 
-    
     def validate(self, epoch, dev_word_lists, dev_tag_lists, word2id, tag2id):
         self.model.eval()
         with torch.no_grad():
             val_loss = 0.
             val_step = 0
             for idx in range(0, len(dev_word_lists), self.batch_size):
-
-                val_step+=1
-                batch_sents = dev_word_lists[idx : idx + self.batch_size]
-                batch_tags = dev_tag_lists[idx : idx + self.batch_size]
+                val_step += 1
+                batch_sents = dev_word_lists[idx: idx + self.batch_size]
+                batch_tags = dev_tag_lists[idx: idx + self.batch_size]
                 batch_sents_tensor, sents_lengths = batch_sents_to_tensorized(batch_sents, word2id)
                 labels_tensor, _ = batch_sents_to_tensorized(batch_tags, tag2id)
                 batch_sents_tensor, labels_tensor = batch_sents_tensor.to(self.device), labels_tensor.to(self.device)
@@ -136,6 +139,24 @@ class NerModel(object):
                 torch.save(self.best_model.state_dict(), self.model_save_path)
                 print(f"curren best val loss: {self.best_val_loss}")
 
+    def seqeval_cal(self, pre_tag_lists, tag_lists):
+        trans_pre_tag_lists, trans_tag_lists = [], []
+        for tags in pre_tag_lists:
+            temp_list = []
+            for tag in tags:
+                if tag[0] == "M":
+                    tag = "I" + tag[1:]
+                temp_list.append(tag)
+            trans_pre_tag_lists.append(temp_list)
+        for tags in tag_lists:
+            temp_list = []
+            for tag in tags:
+                if tag[0] == "M":
+                    tag = "I" + tag[1:]
+                temp_list.append(tag)
+            trans_tag_lists.append(temp_list)
+        print("seqeval_cal........", precision_score(trans_pre_tag_lists, trans_tag_lists))
+
     def test(self, test_word_lists, test_tag_lists, word2id, tag2id):
         test_word_lists, test_tag_lists, indices = sort_by_lengths(test_word_lists, test_tag_lists)
         batch_sents_tensor, sents_lengths = batch_sents_to_tensorized(test_word_lists, word2id)
@@ -152,8 +173,8 @@ class NerModel(object):
                     tag_list.append(id2tag[ids[j].item()])
             else:
                 for j in range(sents_lengths[i]):
-                    tag_list.append(id2tag[ids[j].item()])  
-            pre_tag_lists.append(tag_list)           
+                    tag_list.append(id2tag[ids[j].item()])
+            pre_tag_lists.append(tag_list)
         ind_maps = sorted(list(enumerate(indices)), key=lambda e: e[1])
         indices, _ = list(zip(*ind_maps))
         pre_tag_lists = [pre_tag_lists[i] for i in indices]
@@ -161,11 +182,11 @@ class NerModel(object):
         print("here........")
         print(pre_tag_lists)
         print(tag_lists)
+        self.seqeval_cal(pre_tag_lists, tag_lists)
         total_precision, result_dic = precision(pre_tag_lists, tag_lists)
         print(f"实体级准确率为: {total_precision}")
         print(f"各实体对应的准确率为: {json.dumps(result_dic, ensure_ascii=False, indent=4)}")
 
-    
     def predict(self, text):
         text_list = list(text)
         if self.model_type.find("bilstm-crf") != -1:
@@ -192,6 +213,6 @@ class NerModel(object):
                     tag_list.append(id2tag[ids[j].item()])
             else:
                 for j in range(lengths[i]):
-                    tag_list.append(id2tag[ids[j].item()])  
-            pre_tag_lists.append(tag_list)           
+                    tag_list.append(id2tag[ids[j].item()])
+            pre_tag_lists.append(tag_list)
         return pre_tag_lists

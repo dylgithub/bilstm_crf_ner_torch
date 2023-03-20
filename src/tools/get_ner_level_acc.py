@@ -1,4 +1,5 @@
 # from help import flatten_lists
+from seqeval.metrics import f1_score, accuracy_score, classification_report, precision_score, recall_score
 
 def flatten_lists(lists):
     """将list of list 压平成list"""
@@ -3020,3 +3021,9 @@ if __name__ == '__main__':
     total_precision, result_dic = precision(pre_labels, true_labels)
     print(total_precision)
     print(result_dic)
+    y_true, y_pred = pre_labels, true_labels
+    print(accuracy_score(y_true, y_pred))
+    print(precision_score(y_true, y_pred))
+    # print(recall_score(y_true, y_pred))
+    # print(f1_score(y_true, y_pred))
+    # print(classification_report(y_true, y_pred))
